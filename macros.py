@@ -1,4 +1,9 @@
-from asm import Asm
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from asm import Asm
 
 def half_adder_1b(assembly: Asm, a: int, b: int, dst: int | None = None) -> tuple[int, int]:
 

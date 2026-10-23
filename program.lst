@@ -1,6 +1,7 @@
 addr    word     operation
 000     0010000  nand 0x00, 0x00 -> 0x01
-                 alloc var -> 0x10
+                 alloc var 'var_s' -> 0x10
+                 alloc var 'example'[8] -> 0x11..0x18
 001-004          xor 0x00, 0x01 -> 0x80 (new)
                      temp -> 0x81
                      temp -> 0x82

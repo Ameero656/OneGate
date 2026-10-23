@@ -24,6 +24,8 @@ scratch cell (variables and constants are never released by cleanup).
 
 Output files:
   Digital/program.hex   ROM image for Digital, ends with a HALT word
+  Digital/program_table.md   simulated 256-cell RAM snapshot
+  Digital/memory_map.md   color-coded RAM allocation map
   program.lst   every call you made (alloc, mov, ...) with the instructions it
                 expands into indented underneath, plus ROM address and word
 
@@ -39,6 +41,12 @@ from functools import wraps
 from typing import Any, Concatenate, ParamSpec, cast
 
 from macros import *
+from ram_tools import (
+    render_ram_table,
+    simulate_ram as run_ram,
+    write_memory_map as write_ram_memory_map,
+    write_ram_table,
+)
 
 P = ParamSpec("P")
 
@@ -93,6 +101,7 @@ class Asm:
         self._protected: set[int] = set(range(self.PROTECTED_LO, self.PROTECTED_HI + 1))  # free variable cells
         self._free: set[int] = set(range(self.SCRATCH_LO, self.SCRATCH_HI + 1))           # free scratch cells
         self._blocks: dict[int, int] = {}   # base -> length, for every live row longer than one cell
+        self._allocations: dict[int, tuple[int, str | None, bool]] = {}
         self.peak: int = 0
         self._ready: bool = False                        # constants are writable only for the next line
         self.nand_(self.ZERO, self.ZERO, dst=self.ONE)   # RAM[1] = NAND(0,0) = 1
@@ -183,16 +192,24 @@ class Asm:
                 return base, size
         return cell, 1
 
-    def alloc(self, size: int = 1, *, protected: bool = False) -> int:
+    def alloc(self, size: int = 1, *, protected: bool = False, name: str | None = None) -> int:
         """Reserve `size` consecutive cells and return the base address; bit n is at base + n.
 
         Variables (protected=True) are never freed. Scratch goes back with release().
+        An optional name appears in the generated RAM allocation map.
         """
         if isinstance(size, bool):      # alloc(True) used to mean protected=True
             raise TypeError("alloc(True) was the old protected flag: write alloc(protected=True)")
+        if name is not None:
+            if not name.strip():
+                raise ValueError("allocation name cannot be empty")
+            if any(allocation_name == name for _, allocation_name, _ in self._allocations.values()):
+                raise ValueError(f"an active allocation is already named {name!r}")
         base = self._take(size, protected=protected)
+        self._allocations[base] = (size, name, protected)
         tag = f"[{size}]" if size > 1 else ""
-        self._note(f"alloc {'var' if protected else 'scratch'}{tag} -> {self._span(base, size)}")
+        label = f" {name!r}" if name is not None else ""
+        self._note(f"alloc {'var' if protected else 'scratch'}{label}{tag} -> {self._span(base, size)}")
         return base
 
     def release(self, cell: int) -> None:
@@ -209,6 +226,7 @@ class Asm:
         if cell in self._free:
             return
         self._give(cell, size)
+        self._allocations.pop(cell, None)
         self._note(f"release {self._span(cell, size)}")
 
     @contextmanager
@@ -278,11 +296,35 @@ class Asm:
     def _word(a: int, b: int, d: int) -> int:
         return a | b << 8 | d << 16
 
-    def terminal_print(self) -> None:
-        ram = [0] * 256
-        for a, b, d in self.prog:
-            ram[d] = 1 - (ram[a] & ram[b])
-        print(ram[:8])
+    def simulate_ram(self) -> list[int]:
+        """Run the program with the RAM simulation helper and return its snapshot."""
+        return run_ram(self.prog, 1 << self.PC_BITS)
+
+    def terminal_print(self, start: int = 0, end: int = 256) -> None:
+        """Print and save the simulated RAM rows covering the address range [start, end)."""
+        ram = self.simulate_ram()
+        table = render_ram_table(ram, start, end)
+        if table is None:
+            print("No RAM addresses in range.")
+            return
+
+        print(table)
+        write_ram_table(ram, "Digital/program_table.md", start, end)
+
+    def write_memory_map(self, path: str = "Digital/memory_map.md") -> None:
+        """Write a color-coded RAM map using the standalone RAM tools."""
+        write_ram_memory_map(
+            path,
+            self.prog,
+            self._allocations,
+            self._protected,
+            self._free,
+            (self.PROTECTED_LO, self.PROTECTED_HI),
+            (self.SCRATCH_LO, self.SCRATCH_HI),
+            self.ZERO,
+            self.ONE,
+            1 << self.PC_BITS,
+        )
 
     def write_to_hex(self) -> None:
         words = [self._word(*ins) for ins in self.prog] + [self.HALT]
@@ -307,7 +349,8 @@ if __name__ == "__main__":
     var_a = Asm.ZERO
     var_b = Asm.ONE
     var_c = Asm.ZERO #carry
-    var_s = assembly.alloc(1, protected=True)
+    var_s = assembly.alloc(1, protected=True, name="var_s")
+    example_alloc8b = assembly.alloc(8, protected=True, name="example")
     full_adder_1b(assembly, var_a, var_b, var_c, dst=var_s)
 
     assembly.write_to_hex()
@@ -316,3 +359,5 @@ if __name__ == "__main__":
     print(f'Var_b:{var_b:08x}')
     print(f'Var_c:{var_c:08x}')
     print(f'Var_s:{var_s:08x}')
+    assembly.terminal_print(0, 256)
+    assembly.write_memory_map()

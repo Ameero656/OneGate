@@ -1,12 +1,12 @@
 # OneGate
 ## Features
-- A CPU with exactly one arithmetic instruction. 
-- A Python assembler that builds programs for the OneGate CPU.
-- A
+- A CPU with exactly one arithmetic instruction
+- A Python assembler that builds programs for the OneGate CPU
+- A custom assembly tokenizer/lexer
 ## Contains
-- Digital design files (.dig) for the CPU.
-- Verilog implementation source code.
-- Python OneGate assembly for programming and debugging. 
+- Digital design files (.dig) for the CPU
+- Verilog implementation source code
+- Python OneGate assembly for programming and debugging
 
 
 ## How it works
@@ -30,10 +30,10 @@ NAND is functionally complete, so the hardware stays minimal and everything else
 | `0x10-0x7F` | variables (allocated & protected)                                        |
 | `0x80-0xFE` | scratch space (allocated & unprotected)                         |
 
-- Both constants are write-protected (immutable).
-- Variables are protected from scratch work overrides.
-- Multi-bit values are allocated as consecutive rows, LSB first.
-- Macros borrow scratch cells and release them when done.
+- Both constants are write-protected (immutable)
+- Variables are protected from scratch work overrides
+- Multi-bit values are allocated as consecutive rows, LSB first
+- Macros borrow scratch cells and release them when done
 
 ## Layout
 

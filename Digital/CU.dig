@@ -192,7 +192,7 @@
         </entry>
         <entry>
           <string>lastDataFile</string>
-          <file>C:\Users\Ameer\Project-SuperCPU\program.hex</file>
+          <file>../OneGatePython/program.hex</file>
         </entry>
         <entry>
           <string>autoReload</string>

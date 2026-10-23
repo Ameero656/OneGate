@@ -23,11 +23,12 @@ alone; mov(a, dst=d, cleanup=True) is a move: it also releases a if a is a
 scratch cell (variables and constants are never released by cleanup).
 
 Output files:
-  Digital/program.hex   ROM image for Digital, ends with a HALT word
-  Digital/program_table.md   simulated 256-cell RAM snapshot
-  Digital/memory_map.md   color-coded RAM allocation map
-  program.lst   every call you made (alloc, mov, ...) with the instructions it
-                expands into indented underneath, plus ROM address and word
+  OneGatePython/program.hex   ROM image for Digital, ends with a HALT word
+  OneGatePython/program_table.md   simulated 256-cell RAM snapshot
+  OneGatePython/memory_map.xlsx  spreadsheet RAM allocation map with colored cells
+  OneGatePython/program.lst   every call you made (alloc, mov, ...) with the
+                              instructions it expands into, plus ROM address
+                              and word
 
 Operands are captured before the result is written, so dst may be the same
 cell as a or b.
@@ -38,15 +39,27 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from functools import wraps
+from pathlib import Path
 from typing import Any, Concatenate, ParamSpec, cast
 
-from macros import *
-from ram_tools import (
-    render_ram_table,
-    simulate_ram as run_ram,
-    write_memory_map as write_ram_memory_map,
-    write_ram_table,
-)
+if __package__:
+    from .macros import full_adder_1b
+    from .ram_tools import (
+        render_ram_table,
+        simulate_ram as run_ram,
+        write_memory_map_xlsx as write_ram_memory_map_xlsx,
+        write_ram_table,
+    )
+else:
+    from macros import full_adder_1b
+    from ram_tools import (
+        render_ram_table,
+        simulate_ram as run_ram,
+        write_memory_map_xlsx as write_ram_memory_map_xlsx,
+        write_ram_table,
+    )
+
+OUTPUT_DIR = Path(__file__).resolve().parent
 
 P = ParamSpec("P")
 
@@ -125,7 +138,7 @@ class Asm:
         """List an operation that emits no instructions (alloc, temp, release)."""
         self._rows.append([self._depth, text, None, None])
 
-    def write_listing(self, path: str = "program.lst") -> None:
+    def write_listing(self, path: str | Path = OUTPUT_DIR / "program.lst") -> None:
         def line(addr: str, word: str, text: str, depth: int = 0) -> str:
             return f"{addr:<8}{word:<9}{'    ' * depth}{text}\n"
 
@@ -309,13 +322,14 @@ class Asm:
             return
 
         print(table)
-        write_ram_table(ram, "Digital/program_table.md", start, end)
+        write_ram_table(ram, OUTPUT_DIR / "program_table.md", start, end)
 
-    def write_memory_map(self, path: str = "Digital/memory_map.md") -> None:
-        """Write a color-coded RAM map using the standalone RAM tools."""
-        write_ram_memory_map(
+    def write_memory_map_xlsx(
+        self, path: str | Path = OUTPUT_DIR / "memory_map.xlsx"
+    ) -> None:
+        """Write a colored Excel allocation map using the standalone RAM tools."""
+        write_ram_memory_map_xlsx(
             path,
-            self.prog,
             self._allocations,
             self._protected,
             self._free,
@@ -331,7 +345,7 @@ class Asm:
         if len(words) > 1 << self.PC_BITS:
             raise RuntimeError(f"{len(words)} words (including HALT) won't fit in a {1 << self.PC_BITS}-word ROM")
 
-        with open("Digital/program.hex", "w") as f:
+        with open(OUTPUT_DIR / "program.hex", "w") as f:
             f.write("v2.0 raw\n")
             for w in words:
                 f.write(f"{w:07x}\n")
@@ -351,6 +365,7 @@ if __name__ == "__main__":
     var_c = Asm.ZERO #carry
     var_s = assembly.alloc(1, protected=True, name="var_s")
     example_alloc8b = assembly.alloc(8, protected=True, name="example")
+    example2_alloc8b = assembly.alloc(8, protected=True, name="nxt_row_example")
     full_adder_1b(assembly, var_a, var_b, var_c, dst=var_s)
 
     assembly.write_to_hex()
@@ -360,4 +375,4 @@ if __name__ == "__main__":
     print(f'Var_c:{var_c:08x}')
     print(f'Var_s:{var_s:08x}')
     assembly.terminal_print(0, 256)
-    assembly.write_memory_map()
+    assembly.write_memory_map_xlsx()

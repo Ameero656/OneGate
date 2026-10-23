@@ -1,13 +1,16 @@
 # OneGate
-## Features
+
+A CPU with exactly one arithmetic instruction: `NAND`.
+
+## Feature goals
 - A CPU with exactly one arithmetic instruction
 - A Python assembler that builds programs for the OneGate CPU
 - A custom assembly tokenizer/lexer
-## Contains
+
+## Content goals
 - Digital design files (.dig) for the CPU
 - Verilog implementation source code
 - Python OneGate assembly for programming and debugging
-
 
 ## How it works
 
@@ -17,29 +20,66 @@ RAM[dst] = NAND(RAM[a], RAM[b])
 
 NAND is functionally complete, so the hardware stays minimal and everything else (NOT, AND, OR, XOR, adders) is built in software as sequences of that one instruction.
 
-- **Instruction:** 24 + `X` bits, three 8-bit addresses (`a`, `b`, `dst`) plus `X` utility flags (halt, jmp, etc.)
-- **Hardware:** built in [Digital](https://github.com/hneemann/Digital): a 1-bit NAND ALU, a program counter, a small control unit, and RAM
-- **Macros:** NOT is 1 instruction, AND is 2, OR is 3, XOR is 4. Half adder, full adder and 8-bit ripple-carry adder are built from those
+### Instruction format
+
+Each ROM word is 25 bits: three 8-bit addresses plus `X` utility flags. Today `X = 1` (HALT).
+
+| Bits  | Field  | Meaning                                  |
+|-------|--------|------------------------------------------|
+| 0-7   | `a`    | RAM address of the first operand         |
+| 8-15  | `b`    | RAM address of the second operand        |
+| 16-23 | `dst`  | RAM address the result is written to     |
+| 24    | `HALT` | stop the machine                         |
+
+More flags (jump, etc.) would go above bit 24. ***The number and meaning of flags have yet to be decided*** (see Milestone 2).
+
+### Hardware
+
+Built in [Digital](https://github.com/hneemann/Digital):
+
+- `ALU.dig`: 1-bit ALU. Two input registers (A, B), a NAND gate and a tri-state driver onto the bus.
+- `CU.dig`: control unit. An 8-bit program counter, a 256-word x 25-bit program ROM, and a 2-bit phase counter that steps every instruction through 4 clock phases: read `a`, read `b`, write `dst`, advance the program counter.
+- `CPU.dig`: top level. Connects the ALU and control unit to a 256 x 1-bit dual-port RAM and a clock.
+
+### Macros
+
+Everything above NAND is a macro in `asm.py`. Instruction counts are measured from the assembler.
+
+| Macro                      | Instructions | Built from                      |
+|----------------------------|--------------|---------------------------------|
+| `not_`                     | 1            | NAND                            |
+| `and_`                     | 2            | NAND + NOT                      |
+| `or_`                      | 3            | 2 NOT + NAND                    |
+| `xor_`                     | 4            | 4 NAND                          |
+| `mov`                      | 2            | 2 NOT                           |
+| 1-bit half adder           | 6            | XOR + AND                       |
+| 1-bit full adder           | 17           | 2 half adders + OR + MOV        |
+| 8-bit ripple-carry adder   | about 128    | planned (Milestone 1)           |
 
 ## Memory map
 
-| Address     | Use                                              |
-|-------------|--------------------------------------------------|
-| `0x00`      | constant 0                                       |
-| `0x01`      | constant 1 (made by the first instruction, `NAND(0,0)`) |
-| `0x10-0x7F` | variables (allocated & protected)                                        |
-| `0x80-0xFE` | scratch space (allocated & unprotected)                         |
+RAM is 256 x 1-bit cells (8-bit address).
+
+| Address       | Use                                                       |
+|---------------|-----------------------------------------------------------|
+| `0x00`        | constant 0                                                |
+| `0x01`        | constant 1 (made by the first instruction, `NAND(0,0)`)   |
+| `0x02-0x0F`   | unused                                                    |
+| `0x10-0x7F`   | variables (allocated & protected)                         |
+| `0x80-0xFE`   | scratch space (allocated & unprotected)                   |
+| `0xFF`        | unused                                                    |
 
 - Both constants are write-protected (immutable)
 - Variables are protected from scratch work overrides
 - Multi-bit values are allocated as consecutive rows, LSB first
-- Macros borrow scratch cells and release them when done
+- Macros borrow scratch cells and release them when done. A result created without `dst=` stays allocated until you `release` it.
 
 ## Layout
 
 ```
 asm.py        assembler, macros, scratch allocator, listing and hex output
-onegate.py    OneGate language front end (in progress)
+onegate.py    (planned) OneGate language front end: lexer/tokenizer
+verilog/      (planned) Verilog implementation
 program.lst   generated listing: each call with the instructions it expands into
 Digital/
   ALU.dig       1-bit NAND ALU
@@ -48,40 +88,82 @@ Digital/
   program.hex   generated ROM image (ends with a HALT word)
 ```
 
+`program.lst` and `Digital/program.hex` are generated by `asm.py`. Don't edit them by hand.
+
 ## Usage
+
+Requires Python 3.10 or newer. Run from the repository root, because the output paths are relative.
 
 ```
 python asm.py
 ```
 
-Builds the demo program (an 8-bit add) and writes `program.hex` and `program.lst`. Open `CPU.dig` in Digital and point the ROM in `CU.dig` at `program.hex`.
+Builds the demo program and writes `Digital/program.hex` and `program.lst`. Open `Digital/CPU.dig` in Digital and make sure the program ROM in `CU.dig` points at `Digital/program.hex` (Milestone 0 makes this automatic).
+
+Writing your own program:
 
 ```python
 from asm import Asm
 
 asm = Asm()
-x = asm.alloc(protected=True)     # a variable
-y = asm.alloc(protected=True)
-asm.mov(asm.ONE, dst=x)
-asm.mov(asm.ZERO, dst=y)
-s = asm.xor_(x, y)                # no dst: result goes to a fresh scratch cell
-asm.write_to_hex()
+
+s = asm.alloc(protected=True)   # protected variable
+
+x = asm.mov(asm.ONE, dst=None)  # uses unprotected scratch and assigns to temporary x
+y = asm.mov(asm.ZERO, dst=None) # same as above but with y
+asm.xor_(x, y, dst=s)
+
+asm.release(x)                  # hand scratch cells back when you are done with them
+asm.release(y)
+
+asm.write_to_hex()              # ROM readable program instructions
 ```
 
 ## Roadmap
 
-A small OneGate language that compiles directly to this assembly:
+**Where we are:** the hardware runs straight-line NAND programs and the assembler builds them. There are no jumps yet, so a program can only be as long as the 256-word ROM. One 8-bit add takes about 128 instructions, so two of them just about fill it. Control flow (Milestone 2) is what unlocks everything after it.
+
+Items marked *(proposed)* are not agreed yet. To keep this page honest, tick or untick an item in the same pull request that finishes or changes it.
+
+### Milestone 0: make the repo safe to build on
+- [ ] `CU.dig` loads the program ROM from `Digital/program.hex` using a relative path (it currently points at an absolute path on one machine, so the program won't load on anyone else's)
+
+### Milestone 1: arithmetic library
+- [x] NOT, AND, OR, XOR, MOV macros
+- [x] Scratch and variable allocator with write-protected constants, plus listing and hex output
+- [x] 1-bit half adder and full adder (their output is incomplete until Milestone 0 is done)
+- [ ] 8-bit ripple-carry adder `add8` that reads and writes allocated 8-bit variables and returns `(sum, carry)`, so the language example `sum, carry = a + b` works
+- [ ] A Python model that runs a program and returns RAM, so macros can be tested before Digital (for example all 65,536 inputs of `add8`). `terminal_print` only prints the first 8 cells today
+- [ ] Shifts, then subtract and compare
+
+### Milestone 2: control flow
+Open decisions, which also settle the "flags" question above:
+- How is a jump encoded: a flag bit with the target in an existing 8-bit field (for example `dst`), or extra target bits?
+- What does a conditional jump test: the value of a RAM cell (for example `RAM[a]`)? Jumping on the constant-1 cell would give an unconditional jump.
+
+Work:
+- [ ] Decide the flag layout and document it under "Instruction format"
+- [ ] `CU.dig`: load the program counter on a jump (new control-ROM phase behaviour)
+- [ ] `asm.py`: labels plus `jmp` and conditional-jump macros, with the ROM-size check updated
+- [ ] Loop demo, for example repeated addition
+- [ ] Stretch: store and run programs from RAM, not only ROM (the existing "dynamic programs in RAM" TODO)
+
+### Milestone 3: OneGate language
+A small language that compiles directly to this assembly:
 
 ```
 var a:8 = 200
 sum, carry = a + b
 ```
 
-## Status
+- [ ] Lexer/tokenizer in `onegate.py`
+- [ ] Parser for variable declarations and arithmetic
+- [ ] Code generation through `asm.py`, writing the same listing
+- [ ] Loops and conditions
 
-**Implemented**
-- OneGate ALU & RAM
-- Basic programming and memory allocation with HALT utility instruction
+### Milestone 4: Verilog implementation
+- [ ] Verilog version of the CPU
+- [ ] Testbench that runs the same `program.hex` and checks the result against the Python model
 
-**TODO**
-- Conditional Branching (JMP instruction, navigating and storing dynamic programs in RAM)
+### Ideas, not committed
+- Display output. `Asm.disp` takes screen x/y arguments but is a placeholder with no hardware behind it yet.

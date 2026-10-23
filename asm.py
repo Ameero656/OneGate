@@ -303,8 +303,6 @@ def half_adder_1b(a: int, b: int, dst: int | None = None) -> tuple[int, int]:
     s = assembly.xor_(a, b, dst=dst)
     cout = assembly.and_(a, b, dst=None)
 
-    assembly.write_to_hex()
-
     return s, cout
 
 def full_adder_1b(a: int, b: int, c: int, dst: int | None = None) -> tuple[int, int]:
@@ -313,13 +311,16 @@ def full_adder_1b(a: int, b: int, c: int, dst: int | None = None) -> tuple[int, 
     cout = assembly.mov(assembly.or_(cout1, cout2, dst=cout1), dst=None)
     return s, cout
 
-
-
 if __name__ == "__main__":
     var_a = Asm.ZERO
     var_b = Asm.ONE
-    full_adder_1b(var_a, var_b, Asm.alloc(1, protected=True))
+    var_c = Asm.ZERO #carry
+    var_s = assembly.alloc(1, protected=True)
+    full_adder_1b(var_a, var_b, var_c, dst=var_s)
 
-    print(f'Var_a:{var_a}')
-    print(f'Var_b:{var_b}')
-    print(f'Var_s:{var_s}')
+    assembly.write_to_hex()
+
+    print(f'Var_a:{var_a:08x}')
+    print(f'Var_b:{var_b:08x}')
+    print(f'Var_c:{var_c:08x}')
+    print(f'Var_s:{var_s:08x}')

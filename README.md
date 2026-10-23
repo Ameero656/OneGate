@@ -21,44 +21,36 @@ Most CPUs have dozens of instructions and a pile of hardware to run them. OneGat
 OneGate is built by a small team, and each role below owns one part of the repo. Roles marked `open` are waiting for someone. To take one, put your name after `Who:` in a pull request. One person can hold several roles, and a role can have several people. Roles tie to the [Roadmap](#roadmap) milestones, so tick items off there as you finish them.
 
 **Hardware architect: design and research**
-
-Brainstorms, designs and researches the base Digital design. Makes the instruction-set calls (flag layout, how a jump is encoded) and adds the jump path to the control unit.
-Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud`
+- Brainstorms, designs and researches the base Digital design. Makes the instruction-set calls (flag layout, how a jump is encoded) and adds the jump path to the control unit.
+- Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud`
 
 **Researcher: dedicated research and compilation**
-
-Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
-Owns `Digital/*.dig` · Who: `open`
+- Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
+- Owns `Digital/*.dig` · Who: `open`
 
 **FPGA port: Digital to Vivado**
-
-Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
-Owns `verilog/` (planned) · Milestone 4 · Who: `open`
+- Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
+- Owns `verilog/` (planned) · Milestone 4 · Who: `open`
 
 **Assembly proofreader**
-
-Checks that `asm.py` and `macros.py` do what they claim. Tests every macro against its truth table, builds the Python model that runs a program and returns RAM, and runs `add8` on all 65,536 inputs. Also checks that the generated `program.hex` and `program.lst` match the code.
-Owns tests for `asm.py` and `macros.py` · Milestone 1 · Who: `open`
+- Checks that `asm.py` and `macros.py` do what they claim. Tests every macro against its truth table, builds the Python model that runs a program and returns RAM, and runs `add8` on all 65,536 inputs. Also checks that the generated `program.hex` and `program.lst` match the code.
+- Owns tests for `asm.py` and `macros.py` · Milestone 1 · Who: `open`
 
 **Language front end: tokenizer and parser**
-
-Builds the OneGate language, starting with the lexer/tokenizer and then the parser, so `var a:8 = 200` and `sum, carry = a + b` compile to assembly. Needs `add8` from Milestone 1 before `a + b` can work.
-Owns `onegate.py` (planned) · Milestone 3 · Who: `open`
+- Builds the OneGate language, starting with the lexer/tokenizer and then the parser, so `var a:8 = 200` and `sum, carry = a + b` compile to assembly. Needs `add8` from Milestone 1 before `a + b` can work.
+- Owns `onegate.py` (planned) · Milestone 3 · Who: `open`
 
 **Assembler and macros**
-
-Writes the library the other roles build on: `add8`, shifts, subtract, compare, and later labels and jump macros.
-Owns `asm.py` and `macros.py` · Milestones 1 and 2 · Who: `open`
+- Writes the library the other roles build on: `add8`, shifts, subtract, compare, and later labels and jump macros.
+- Owns `asm.py` and `macros.py` · Milestones 1 and 2 · Who: `open`
 
 **Verification and CI**
-
-Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request.
-Owns the cross-checks and CI setup · Milestone 4 · Who: `open`
+- Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request.
+- Owns the cross-checks and CI setup · Milestone 4 · Who: `open`
 
 **Project lead and docs**
-
-Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.
-Owns `README.md` · All milestones · Who: `Ameer Masoud`
+- Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.
+- Owns `README.md` · All milestones · Who: `Ameer Masoud`
 
 ***Later, when we go toward a chip: a *silicon explorer* to look at open 180 nm flows and what the design would need for an ASIC.***
 

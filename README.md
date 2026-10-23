@@ -123,7 +123,7 @@ asm.write_to_hex()              # ROM readable program instructions
 
 **Where we are:** the hardware runs straight-line NAND programs and the assembler builds them. There are no jumps yet, so a program can only be as long as the 256-word ROM. One 8-bit add takes about 128 instructions, so two of them just about fill it. Control flow (Milestone 2) is what unlocks everything after it.
 
-Items marked *(proposed)* are not agreed yet. To keep this page honest, tick or untick an item in the same pull request that finishes or changes it.
+To keep this page honest, tick or untick an item in the same pull request that finishes or changes it.
 
 ### Milestone 0: make the repo safe to build on
 - [ ] `CU.dig` loads the program ROM from `Digital/program.hex` using a relative path (it currently points at an absolute path on one machine, so the program won't load on anyone else's)
@@ -131,7 +131,7 @@ Items marked *(proposed)* are not agreed yet. To keep this page honest, tick or 
 ### Milestone 1: arithmetic library
 - [x] NOT, AND, OR, XOR, MOV macros
 - [x] Scratch and variable allocator with write-protected constants, plus listing and hex output
-- [x] 1-bit half adder and full adder (their output is incomplete until Milestone 0 is done)
+- [x] 1-bit half adder and full adder
 - [ ] 8-bit ripple-carry adder `add8` that reads and writes allocated 8-bit variables and returns `(sum, carry)`, so the language example `sum, carry = a + b` works
 - [ ] A Python model that runs a program and returns RAM, so macros can be tested before Digital (for example all 65,536 inputs of `add8`). `terminal_print` only prints the first 8 cells today
 - [ ] Shifts, then subtract and compare

@@ -1,7 +1,7 @@
 """
 asm.py - back end for the OneGate machine.
 
-The machine has ONE instruction:   RAM[dst] = NAND(RAM[a], RAM[b])
+The machine has ONE ALU instruction:   RAM[dst] = NAND(RAM[a], RAM[b])
 onegate.py calls this module for everything below the syntax:
 named variables, macros (not/and/or/xor/mov/add/shifts), padding, program.hex
 output, a listing, and a Python model of the machine so a program can be
@@ -23,7 +23,7 @@ alone; mov(a, dst=d, cleanup=True) is a move: it also releases a if a is a
 scratch cell (variables and constants are never released by cleanup).
 
 Output files:
-  program.hex   ROM image for Digital, ends with a HALT word
+  Digital/program.hex   ROM image for Digital, ends with a HALT word
   program.lst   every call you made (alloc, mov, ...) with the instructions it
                 expands into indented underneath, plus ROM address and word
 
@@ -287,7 +287,7 @@ class Asm:
         if len(words) > 1 << self.PC_BITS:
             raise RuntimeError(f"{len(words)} words (including HALT) won't fit in a {1 << self.PC_BITS}-word ROM")
 
-        with open("program.hex", "w") as f:
+        with open("Digital/program.hex", "w") as f:
             f.write("v2.0 raw\n")
             for w in words:
                 f.write(f"{w:07x}\n")
@@ -313,36 +313,13 @@ def full_adder_1b(a: int, b: int, c: int, dst: int | None = None) -> tuple[int, 
     cout = assembly.mov(assembly.or_(cout1, cout2, dst=cout1), dst=None)
     return s, cout
 
-def full_adder_8b(a: int, b: int, c: int=0) -> tuple[int, int]:
-    s = assembly.alloc(8, protected=True)
-    for n in range(8):
-        x = a&1
-        y = b&1
-        a>>=1
-        b>>=1
-
-        _, c = full_adder_1b(x, y, c, dst=s + n)
-
-    return s, c
-
 
 
 if __name__ == "__main__":
-    var_a = assembly.alloc(8, protected=True)
-    var_b = assembly.alloc(8, protected=True)
+    var_a = Asm.ZERO
+    var_b = Asm.ONE
+    full_adder_1b(var_a, var_b, Asm.alloc(1, protected=True))
 
-    a = 5
-    b = 9
-
-    an = a
-    bn = b
-    for n in range(8):
-        assembly.mov(an&1, dst=var_a + n)
-        assembly.mov(bn&1, dst=var_b + n)
-        an>>=1
-        bn>>=1
-
-    var_s, _ = full_adder_8b(a, b)
-    print(f'Var_a:{var_a:08x}')
-    print(f'Var_b:{var_b:08x}')
-    print(f'Var_s:{var_s:08x}')
+    print(f'Var_a:{var_a}')
+    print(f'Var_b:{var_b}')
+    print(f'Var_s:{var_s}')

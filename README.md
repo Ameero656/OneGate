@@ -2,6 +2,10 @@
 
 A CPU with exactly one arithmetic instruction: `NAND`.
 
+Most CPUs have dozens of instructions and a pile of hardware to run them. OneGate has exactly one: take two bits from memory, NAND them, write the result back. That’s the whole machine. Everything else, from NOT and XOR to a full 8-bit adder, is built in software out of that single operation, and a Python assembler does the stitching. It’s computing stripped to its bare minimum, and it shows that a working computer can come from one logic gate repeated enough times. If a normal ALU is a full toolbox, OneGate is one tool used over and over to build every other tool. Our philosophy is for the OneGate CPU to possess the smallest possible ALU and maintain conceptual universality (turning complete).
+
+***I fear not the man who has practiced 10,000 kicks once, but I fear the man who has practiced one kick 10,000 times.***
+
 ## Feature goals
 - A CPU with exactly one arithmetic instruction
 - A Python assembler that builds programs for the OneGate CPU

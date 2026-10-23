@@ -38,6 +38,8 @@ from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Concatenate, ParamSpec, cast
 
+from macros import *
+
 P = ParamSpec("P")
 
 # One listing row: [depth, text, first_addr, end_addr]. The addresses are None
@@ -296,27 +298,17 @@ class Asm:
 
 
 
-assembly = Asm()
 
-def half_adder_1b(a: int, b: int, dst: int | None = None) -> tuple[int, int]:
 
-    s = assembly.xor_(a, b, dst=dst)
-    cout = assembly.and_(a, b, dst=None)
-
-    return s, cout
-
-def full_adder_1b(a: int, b: int, c: int, dst: int | None = None) -> tuple[int, int]:
-    s1, cout1 = half_adder_1b(a, b)
-    s, cout2 = half_adder_1b(s1, c, dst=dst)
-    cout = assembly.mov(assembly.or_(cout1, cout2, dst=cout1), dst=None)
-    return s, cout
 
 if __name__ == "__main__":
+    assembly = Asm()
+    
     var_a = Asm.ZERO
     var_b = Asm.ONE
     var_c = Asm.ZERO #carry
     var_s = assembly.alloc(1, protected=True)
-    full_adder_1b(var_a, var_b, var_c, dst=var_s)
+    full_adder_1b(assembly, var_a, var_b, var_c, dst=var_s)
 
     assembly.write_to_hex()
 

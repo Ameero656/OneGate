@@ -17,7 +17,7 @@ RAM[dst] = NAND(RAM[a], RAM[b])
 
 NAND is functionally complete, so the hardware stays minimal and everything else (NOT, AND, OR, XOR, adders) is built in software as sequences of that one instruction.
 
-- **Instruction:** 25 bits, three 8-bit addresses (`a`, `b`, `dst`) plus utility flags (halt, jmp, etc.)
+- **Instruction:** 24 + `X` bits, three 8-bit addresses (`a`, `b`, `dst`) plus `X` utility flags (halt, jmp, etc.)
 - **Hardware:** built in [Digital](https://github.com/hneemann/Digital): a 1-bit NAND ALU, a program counter, a small control unit, and RAM
 - **Macros:** NOT is 1 instruction, AND is 2, OR is 3, XOR is 4. Half adder, full adder and 8-bit ripple-carry adder are built from those
 

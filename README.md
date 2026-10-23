@@ -24,6 +24,10 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 Brainstorms, designs and researches the base Digital design. Makes the instruction-set calls (flag layout, how a jump is encoded) and adds the jump path to the control unit.
 Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud`
 
+**Researcher: Dedicated research and compilation**
+Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
+Owns `Digital/*.dig` · Who: `open`
+
 **FPGA port: Digital to Vivado**
 Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
 Owns `verilog/` (planned) · Milestone 4 · Who: `open`

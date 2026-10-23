@@ -289,7 +289,25 @@ class Asm:
             self.not_(a, dst=x); self.not_(b, dst=y); self.nand_(x, y, dst=dst)
 
     @gate
-    def xor_(self, a: int, b: int, *, dst: int | None = None) -> None:
+    def xor_(
+        self,
+        a: int,
+        b: int,
+        *,
+        dst: int | None = None,
+        nand_dst: int | None = None,
+    ) -> None:
+        """Compute XOR, optionally storing its NAND(a, b) intermediate in nand_dst."""
+        if nand_dst is not None:
+            if nand_dst in (a, b, dst):
+                raise ValueError("nand_dst must not alias either input or the XOR destination")
+            self.nand_(a, b, dst=nand_dst)
+            with self.temp() as u, self.temp() as v:
+                self.nand_(a, nand_dst, dst=u)
+                self.nand_(b, nand_dst, dst=v)
+                self.nand_(u, v, dst=dst)
+            return
+
         with self.temp() as t, self.temp() as u, self.temp() as v:
             self.nand_(a, b, dst=t)
             self.nand_(a, t, dst=u)

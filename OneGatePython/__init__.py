@@ -9,7 +9,7 @@ var_c = Asm.ZERO #carry
 var_s = assembly.alloc(1, protected=True, name="var_s")
 example_alloc8b = assembly.alloc(8, protected=True, name="example")
 example2_alloc8b = assembly.alloc(8, protected=True, name="nxt_row_example")
-full_adder_1b(assembly, var_a, var_b, var_c, dst=var_s)
+full_adder_1b_optimized(assembly, var_a, var_b, var_c, dst=var_s)
 
 assembly.write_to_hex()
 

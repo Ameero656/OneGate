@@ -96,7 +96,10 @@ Everything above NAND is a macro in `asm.py` (gates) or `macros.py` (adders). In
 | `mov`                      | 2            | 2 NOT                           |
 | 1-bit half adder           | 6            | XOR + AND                       |
 | 1-bit full adder           | 15           | 2 half adders + OR              |
+| optimized 1-bit full adder | 9            | NAND intermediates shared by XOR and carry |
 | 8-bit ripple-carry adder   | about 112    | planned (Milestone 1)           |
+
+`xor_` accepts an optional `nand_dst` output to retain its `NAND(a, b)` intermediate for reuse by macros.
 
 ## Memory map
 

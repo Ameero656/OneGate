@@ -19,3 +19,14 @@ def full_adder_1b(assembly: Asm, a: int, b: int, c: int, dst: int | None = None)
     cout = assembly.or_(cout1, cout2, dst=cout1)
     assembly.release(cout2)
     return s, cout
+
+def full_adder_1b_optimized(
+    assembly: Asm, a: int, b: int, c: int, dst: int | None = None
+) -> tuple[int, int]:
+    """Full adder using XOR helpers and their shared intermediates (9 instructions)."""
+    with assembly.temp() as n_ab, assembly.temp() as n_pc:
+        partial = assembly.xor_(a, b, nand_dst=n_ab)
+        s = assembly.xor_(partial, c, dst=dst, nand_dst=n_pc)
+        cout = assembly.nand_(n_ab, n_pc)
+        assembly.release(partial)
+    return s, cout

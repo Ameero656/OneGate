@@ -26,7 +26,7 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Researcher: dedicated research and compilation**
 - Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
-- Owns `Digital/*.dig` · Who: `open`
+- Owns `Documents/` · Who: `open`
 
 **FPGA port: Digital to Vivado**
 - Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.

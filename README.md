@@ -50,14 +50,18 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 - Owns `asm.py` and `macros.py` · Milestones 1 and 2 · Who: `open`
 
 **Verification and CI**
-- Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request.
+- Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request. Before tapeout this includes simulating the synthesized gate-level design.
 - Owns the cross-checks and CI setup · Milestone 4 · Who: `open`
+
+**Tapeout and physical design**
+- Takes the Verilog through synthesis, place and route, and signoff in the club's 180 nm flow, and works with the club on area, pin and deadline limits. Everything that touches the foundry kit lives outside this public repo, and the person must be covered by the NDA first.
+- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `open`
 
 **Project lead and docs**
 - Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.
 - Owns `README.md` · All milestones · Who: `Ameer Masoud`
 
-***Later, when we go toward a chip: a *silicon explorer* to look at open 180 nm flows and what the design would need for an ASIC.***
+***Silicon: OneGate is a Stone Arch Silicon project, planned for a 180 nm tapeout where each subteam's design shares one chip. The foundry kit is under NDA and stays out of this repo (see [Tapeout](#tapeout-planned)).***
 
 ## How it works
 
@@ -122,7 +126,7 @@ sum = 44, carry = 1
 
 How it is meant to work:
 
-- **It runs on the Python model, not on the hardware.** The ROM is fixed when the CPU starts, so the real machine can't take new lines on the fly. A prompt on the hardware would need programs that run from RAM (the Milestone 2 stretch goal) and a way to send instructions to the CPU.
+- **It runs on the Python model, not on the hardware.** The ROM is fixed when the CPU starts, so the real machine can't take new lines on the fly. A prompt on the hardware needs program memory that can be written while the CPU waits, plus a host link to send instructions. That is the loadable program memory planned under [Tapeout](#tapeout-planned). The programs do not need to run from the data RAM.
 - **RAM persists between lines.** Variables live in `0x10-0x7F` (112 cells, so fourteen 8-bit variables) and scratch in `0x80-0xFE` (127 cells). Temporaries are released after every line, and running out of variables, scratch cells or ROM is reported as a plain error.
 - **Every line shows its cost** in NAND instructions (4 clock cycles each) and how much of the 256-word ROM the session has used, so you can see when a session would no longer fit on the real machine.
 - **Meta-commands start with `:`** and build on the existing helpers: `:ram` (`render_ram_table`), `:listing` (`write_listing`), `:save` (`write_to_hex`, so a session becomes a `program.hex` for Digital) and `:reset`.
@@ -208,6 +212,19 @@ Interactive terminal (planned, Milestone 5), launched the same way:
 python -m OneGatePython.repl
 ```
 
+## Tapeout (planned)
+
+OneGate is a Stone Arch Silicon project. The club plans a 180 nm tapeout in which each subteam's design shares one chip, so OneGate has to fit an area and pin budget that is still to be confirmed with the club. Silicon can't be patched after fabrication, which changes a few things for the design:
+
+- **Program memory must be loadable.** A ROM fixed at fabrication runs one program forever. The first chip needs program memory that can be written after fabrication, and a stop state (the end-of-program `HALT` or a resumable `AWAIT`) that leaves RAM untouched so the next chunk of instructions can follow. This is also what lets the interactive terminal run on the real chip.
+- **Few pins, so a serial interface.** Load instruction words, read the 256 RAM cells, and report halt status over a small serial link, plus clock and reset. `Digital/CPU.dig` has only a clock, a button and an LED today.
+- **Defined power-up.** The assembler assumes RAM cell `0x00` is 0 at start. On silicon that needs a reset, or the two constant cells wired outside the RAM.
+- **No tri-state bus inside the chip.** The RTL uses a mux (see the FPGA port role).
+- **Gate-level checks.** The same `program.hex` must give the same RAM in the Python model, Digital, the RTL simulation and the synthesized gate-level simulation.
+- **The foundry kit is under NDA.** Don't commit the process kit, cell libraries, layouts, or any script or report derived from them. RTL, testbenches, Python and docs stay public. Anyone working with the kit must be covered by the NDA first.
+
+These are decisions still to make, not settled design. The loadable-program interface also depends on the flag layout from Milestone 2.
+
 ## Roadmap
 
 **Where we are:** the hardware runs straight-line NAND programs and the assembler builds them. There are no jumps yet, so a program can only be as long as the 256-word ROM. One 8-bit add takes about 112 instructions, so two of them fit in the 256-word ROM but a third won't. Control flow (Milestone 2) is what unlocks everything after it.
@@ -269,7 +286,17 @@ Stage 2: OneGate prompt
 - [ ] Accept OneGate language lines (`var a:8 = 200`, `sum, carry = a + b`) once Milestone 3 can compile one statement at a time
 - [ ] Continuation prompt for multi-line blocks once loops and conditions exist (Milestones 2 and 3)
 
+### Milestone 6: tapeout readiness
+See [Tapeout](#tapeout-planned). The first four items need no foundry access.
+- [ ] Confirm with the club: tapeout deadline, area and pin budget, NDA coverage, and what may be public
+- [ ] Decide the loadable-program interface (writable program memory, serial load and read-back, halt/await behavior) and document it under "Instruction format"
+- [ ] Define reset and power-up behavior, including the constant cells `0x00` and `0x01`
+- [ ] RTL without a tri-state bus that passes the Milestone 4 testbench
+- [ ] Gate-level simulation of the synthesized design matches the Python model on the same `program.hex`
+- [ ] Physical design and signoff in the club's 180 nm flow, kept outside this repo
+- [ ] Submit to the club's shared-chip tapeout
+
 ### Ideas, not committed
 - Display output. `Asm.disp` takes screen x/y arguments but is a placeholder with no hardware behind it yet.
-- A prompt on the real machine: needs programs that run from RAM (Milestone 2 stretch) and a host link to send instructions, for example over a serial port on the FPGA build.
+- A prompt on the real machine: once Milestone 6 gives the CPU loadable program memory, the interactive terminal can send instructions to an FPGA board or the chip over its serial link instead of using the Python model.
 - A try-it-in-your-browser version of the interactive terminal. The Python model could run in the browser through Pyodide, published on GitHub Pages.

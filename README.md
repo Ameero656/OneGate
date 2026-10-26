@@ -10,6 +10,7 @@ Most CPUs have dozens of instructions and a pile of hardware to run them. OneGat
 - A CPU with exactly one arithmetic instruction
 - A Python assembler that builds programs for the OneGate CPU
 - A custom assembly tokenizer/lexer
+- An interactive terminal (REPL): type one line at a time and see the result straight away, like a calculator
 
 ## Content goals
 - Digital design files (.dig) for the CPU
@@ -39,6 +40,10 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 **Language front end: tokenizer and parser**
 - Builds the OneGate language, starting with the lexer/tokenizer and then the parser, so `var a:8 = 200` and `sum, carry = a + b` compile to assembly. Needs `add8` from Milestone 1 before `a + b` can work.
 - Owns `onegate.py` (planned) · Milestone 3 · Who: `open`
+
+**Interactive terminal: REPL**
+- Builds the live prompt. A line is typed, assembled into NAND instructions, run on the Python model against RAM that persists between lines, and the result is printed along with what it cost. It starts as a prompt over the `Asm` API and later takes OneGate language lines. Also extends the model so a line runs only its own new instructions, instead of replaying the whole program from zeroed RAM as `simulate_ram` does today.
+- Owns `repl.py` (planned) · Milestone 5 · Who: `open`
 
 **Assembler and macros**
 - Writes the library the other roles build on: `add8`, shifts, subtract, compare, and later labels and jump macros.
@@ -101,6 +106,27 @@ Everything above NAND is a macro in `asm.py` (gates) or `macros.py` (adders). In
 
 `xor_` accepts an optional `nand_dst` output to retain its `NAND(a, b)` intermediate for reuse by macros.
 
+### Interactive terminal (planned)
+
+A live prompt in the spirit of the Python shell: type one line, get the answer. Nothing here is built yet (Milestone 5). It comes in two stages:
+
+1. **Assembler prompt.** A Python prompt with `Asm` and the Python model already loaded. Each call assembles into NAND instructions, runs on the model, and shows the value it produced. This needs nothing beyond the model from Milestone 1.
+2. **OneGate prompt.** The same loop fed with OneGate language lines, once Milestone 3 exists. Target behavior:
+
+```
+>>> var a:8 = 200
+>>> var b:8 = 100
+>>> sum, carry = a + b
+sum = 44, carry = 1
+```
+
+How it is meant to work:
+
+- **It runs on the Python model, not on the hardware.** The ROM is fixed when the CPU starts, so the real machine can't take new lines on the fly. A prompt on the hardware would need programs that run from RAM (the Milestone 2 stretch goal) and a way to send instructions to the CPU.
+- **RAM persists between lines.** Variables live in `0x10-0x7F` (112 cells, so fourteen 8-bit variables) and scratch in `0x80-0xFE` (127 cells). Temporaries are released after every line, and running out of variables, scratch cells or ROM is reported as a plain error.
+- **Every line shows its cost** in NAND instructions (4 clock cycles each) and how much of the 256-word ROM the session has used, so you can see when a session would no longer fit on the real machine.
+- **Meta-commands start with `:`** and build on the existing helpers: `:ram` (`render_ram_table`), `:listing` (`write_listing`), `:save` (`write_to_hex`, so a session becomes a `program.hex` for Digital) and `:reset`.
+
 ## Memory map
 
 RAM is 256 x 1-bit cells (8-bit address).
@@ -129,6 +155,7 @@ OneGatePython/
   macros.py         half adder and full adder macros
   ram_tools.py      RAM simulation and visualization helpers
   onegate.py        (planned) OneGate language front end
+  repl.py           (planned) interactive terminal
   requirements.txt  Python dependencies
   program.lst       generated assembler listing
   program.hex       generated ROM image (ends with a HALT word)
@@ -173,7 +200,12 @@ asm.release(x)                  # hand scratch cells back when you are done with
 asm.release(y)
 
 asm.write_to_hex()              # ROM readable program instructions
-asm.write_to_hex()              # ROM readable program instructions
+```
+
+Interactive terminal (planned, Milestone 5), launched the same way:
+
+```
+python -m OneGatePython.repl
 ```
 
 ## Roadmap
@@ -216,11 +248,28 @@ sum, carry = a + b
 - [ ] Lexer/tokenizer in `onegate.py`
 - [ ] Parser for variable declarations and arithmetic
 - [ ] Code generation through `asm.py`, writing the same listing
+- [ ] Compile one statement at a time and keep variable names and allocations between calls, so the interactive terminal (Milestone 5) can reuse it
 - [ ] Loops and conditions
 
 ### Milestone 4: Verilog implementation
 - [ ] Verilog version of the CPU
 - [ ] Testbench that runs the same `program.hex` and checks the result against the Python model
 
+### Milestone 5: interactive terminal
+A live prompt where you type one line at a time, like the Python shell (see [Interactive terminal](#interactive-terminal-planned)). Stage 1 needs only the Python model from Milestone 1, so it does not have to wait for Milestones 2 to 4.
+
+Stage 1: assembler prompt
+- [ ] Python model with RAM that persists between lines: run only the new instructions of each line (`simulate_ram` always starts from zeroed RAM and replays the whole program)
+- [ ] `repl.py`: a prompt with `Asm` and the model preloaded that prints the value each call produced
+- [ ] Release temporaries after every line, and report running out of variables, scratch cells or ROM as a plain error
+- [ ] Cost readout per line: NAND instructions, clock cycles (4 per instruction) and ROM words used out of 256
+- [ ] Meta-commands `:ram`, `:listing`, `:save` and `:reset`
+
+Stage 2: OneGate prompt
+- [ ] Accept OneGate language lines (`var a:8 = 200`, `sum, carry = a + b`) once Milestone 3 can compile one statement at a time
+- [ ] Continuation prompt for multi-line blocks once loops and conditions exist (Milestones 2 and 3)
+
 ### Ideas, not committed
 - Display output. `Asm.disp` takes screen x/y arguments but is a placeholder with no hardware behind it yet.
+- A prompt on the real machine: needs programs that run from RAM (Milestone 2 stretch) and a host link to send instructions, for example over a serial port on the FPGA build.
+- A try-it-in-your-browser version of the interactive terminal. The Python model could run in the browser through Pyodide, published on GitHub Pages.

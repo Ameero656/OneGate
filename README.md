@@ -27,7 +27,7 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Researcher: dedicated research and compilation**
 - Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
-- Owns `Documents/` · Who: `open`
+- Owns `Documents/` · Who: `Isaac Blommel`
 
 **FPGA port: Digital to Vivado**
 - Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
@@ -55,7 +55,7 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Tapeout and physical design**
 - Takes the Verilog through synthesis, place and route, and signoff in the club's 180 nm flow, and works with the club on area, pin and deadline limits. Everything that touches the foundry kit lives outside this public repo, and the person must be covered by the NDA first.
-- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `open`
+- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `Isaac Blommel`
 
 **Project lead and docs**
 - Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.

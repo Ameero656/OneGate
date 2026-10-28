@@ -31,7 +31,7 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **FPGA port: Digital to Vivado**
 - Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
-- Owns `verilog/` (planned) · Milestone 4 · Who: `open`
+- Owns `verilog/` (planned) · Milestone 4 · Who: `Kien`
 
 **Assembly proofreader**
 - Checks that `asm.py` and `macros.py` do what they claim. Tests every macro against its truth table, builds the Python model that runs a program and returns RAM, and runs `add8` on all 65,536 inputs. Also checks that the generated `program.hex` and `program.lst` match the code.

@@ -51,11 +51,11 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Verification and CI**
 - Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request. Before tapeout this includes simulating the synthesized gate-level design.
-- Owns the cross-checks and CI setup · Milestone 4 · Who: `open`
+- Owns the cross-checks and CI setup · Milestone 4 · Who: `Kien` (open to others)
 
 **Tapeout and physical design**
 - Takes the Verilog through synthesis, place and route, and signoff in the club's 180 nm flow, and works with the club on area, pin and deadline limits. Everything that touches the foundry kit lives outside this public repo, and the person must be covered by the NDA first.
-- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `Isaac Blommel`
+- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `Isaac Blommel & Kien` (open to others)
 
 **Project lead and docs**
 - Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.

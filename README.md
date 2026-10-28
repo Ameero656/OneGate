@@ -23,7 +23,7 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Hardware architect: design and research**
 - Brainstorms, designs and researches the base Digital design. Makes the instruction-set calls (flag layout, how a jump is encoded) and adds the jump path to the control unit.
-- Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud`
+- Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud & Isaac Blommel`
 
 **Researcher: dedicated research and compilation**
 - Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 

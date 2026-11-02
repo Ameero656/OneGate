@@ -101,18 +101,32 @@ def gate(emit: Callable[Concatenate[Asm, P], None]) -> Callable[Concatenate[Asm,
 class Asm:
     ZERO, ONE = 0x00, 0x01
     CONSTANTS = (ZERO, ONE)
-    SCRATCH_LO, SCRATCH_HI = 0x80, 0xFE # allocated space for scratch work
     PROTECTED_LO, PROTECTED_HI = 0x10, 0x7F #allocated space for protected values (vars)
-    HALT = 1 << 24 # bit24 flags the end of program; pauses tri-state cycle & program counter
+    SCRATCH_CALL_LO, SCRATCH_CALL_HI = 0x80, 0x9F # allocated space for call scratch work
+    SCRATCH_FUNC_LO, SCRATCH_FUNC_HI = 0xA0, 0xBF # allocated space for func scratch work
+    
+    
+    HALT = 0b000
+    HALT_WORD = (0, 0, 0, HALT)
+    NAND = 0b001
+    NAND_RET = 0b010
+    CALL = 0b011
+    ARGS = 0b100
+
+
 
     PC_BITS = 8 # used for hex writing checks (instructions do not exceed ROM capacity)
 
     def __init__(self) -> None:
-        self.prog: list[tuple[int, int, int]] = []
+        self.prog: list[tuple[int, int, int, int]] = []
+        self.bodies: list[tuple[int, int, int, int]] = []
         self._rows: list[Row] = []
         self._depth: int = 0
         self._protected: set[int] = set(range(self.PROTECTED_LO, self.PROTECTED_HI + 1))  # free variable cells
-        self._free: set[int] = set(range(self.SCRATCH_LO, self.SCRATCH_HI + 1))           # free scratch cells
+        self._free_call: set[int] = set(range(self.SCRATCH_CALL_LO, self.SCRATCH_CALL_HI + 1))  # free scratch cells
+        self._free_func: set[int] = set(range(self.SCRATCH_FUNC_LO, self.SCRATCH_FUNC_HI + 1))
+        self._scratch: tuple[int, int] = (self.SCRATCH_CALL_LO, self.SCRATCH_CALL_HI)
+        self._free: set[int] = self._free_call
         self._blocks: dict[int, int] = {}   # base -> length, for every live row longer than one cell
         self._allocations: dict[int, tuple[int, str | None, bool]] = {}
         self.peak: int = 0
@@ -125,18 +139,18 @@ class Asm:
     @contextmanager
     def _scope(self, text: str) -> Iterator[None]:
         """List one operation; everything emitted inside it is indented underneath."""
-        row: Row = [self._depth, text, len(self.prog), None]
+        row: Row = [self._depth, text, len(self.prog), None, self.prog]
         self._rows.append(row)
         self._depth += 1
         try:
             yield
         finally:
             self._depth -= 1
-            row[3] = len(self.prog)
+            row[3] = len(row[4])
 
     def _note(self, text: str) -> None:
         """List an operation that emits no instructions (alloc, temp, release)."""
-        self._rows.append([self._depth, text, None, None])
+        self._rows.append([self._depth, text, None, None, None])
 
     def write_listing(self, path: str | Path = OUTPUT_DIR / "program.lst") -> None:
         def line(addr: str, word: str, text: str, depth: int = 0) -> str:
@@ -144,12 +158,12 @@ class Asm:
 
         with open(path, "w") as f:
             f.write(line("addr", "word", "operation"))
-            for depth, text, start, end in self._rows:
+            for depth, text, start, end, words in self._rows:                
                 if start is None or end is None or end == start:
                     addr = word = ""
                 elif end - start == 1:
                     addr = f"{start:03d}"
-                    word = f"{self._word(*self.prog[start]):07x}"
+                    word = f"{self._word(*words[start]):07x}"
                 else:
                     addr, word = f"{start:03d}-{end - 1:03d}", ""
                 f.write(line(addr, word, text, depth))
@@ -190,7 +204,7 @@ class Asm:
         pool.difference_update(range(base, base + size))
         if size > 1:
             self._blocks[base] = size
-        self.peak = max(self.peak, self.SCRATCH_HI - self.SCRATCH_LO + 1 - len(self._free))
+        self.peak = max(self.peak, self._scratch[1] - self._scratch[0] + 1 - len(self._free))
         return base
 
     def _give(self, base: int, size: int = 1) -> None:
@@ -211,7 +225,7 @@ class Asm:
         Variables (protected=True) are never freed. Scratch goes back with release().
         An optional name appears in the generated RAM allocation map.
         """
-        if isinstance(size, bool):      # alloc(True) used to mean protected=True
+        if isinstance(size, bool):      
             raise TypeError("alloc(True) was the old protected flag: write alloc(protected=True)")
         if name is not None:
             if not name.strip():
@@ -230,7 +244,7 @@ class Asm:
 
         Variables and constants are ignored. A cell from the middle of a row raises ValueError.
         """
-        if not self.SCRATCH_LO <= cell <= self.SCRATCH_HI:
+        if not self._scratch[0] <= cell <= self._scratch[1]:
             return
         base, size = self._row_of(cell)
         if base != cell:
@@ -241,6 +255,44 @@ class Asm:
         self._give(cell, size)
         self._allocations.pop(cell, None)
         self._note(f"release {self._span(cell, size)}")
+
+
+    def call(self, body: int, *args: int) -> None:
+        """Emit CALL. args are base addresses of up to 4 rows (8-aligned, below 0x80)."""
+        if len(args) > 4:
+            raise ValueError("CALL carries 4 rows; more needs an ARGS word first")
+        rows = []
+        for addr in args:
+            if addr & 7 or not 0 <= addr < 0x80:
+                raise ValueError(f"0x{addr:02X} can't be a row argument: multiple of 8, below 0x80")
+            rows.append(addr >> 3)
+        rows += [0] * (4 - len(rows))
+        a = rows[0] | rows[1] << 4          # slot 0 low nibble, slot 1 high
+        b = rows[2] | rows[3] << 4
+        with self._scope(f"call body {body} " + ", ".join(f"0x{x:02X}" for x in args)):
+            self.prog.append((a, b, body, self.CALL))   #
+
+    def _layout(self):
+        main_size = len(self.prog) + 1
+        if any(op == self.CALL for *_, op in self.bodies):
+            raise RuntimeError("a body contains a CALL; bodies are leaf-only")
+        words = [(a, b, main_size + loc, op) if op == self.CALL else (a, b, loc, op)
+                for a, b, loc, op in self.prog]
+        words.append(self.HALT_WORD)
+        words += self.bodies
+        if len(words) > 1 << self.PC_BITS:
+            raise RuntimeError(f"{len(words)} words won't fit")
+        return words
+    
+    def place_body(self, instructions):
+        if not instructions:
+            raise ValueError("a body needs at least one instruction")
+        *rest, (a, b, d, _) = instructions
+        start = len(self.bodies)                      # offset within the bodies list
+        self.bodies.extend(rest)
+        self.bodies.append((a, b, d, self.NAND_RET))  # last word also returns
+        return start
+
 
     @contextmanager
     def temp(self, size: int = 1) -> Iterator[int]:
@@ -253,12 +305,23 @@ class Asm:
         finally:
             self._give(t, size)
 
+    @contextmanager
+    def body(self):
+        main, self.prog = self.prog, []
+        saved = (self._free, self._scratch)
+        self._free, self._scratch = self._free_func, (self.SCRATCH_FUNC_LO, self.SCRATCH_FUNC_HI)
+        try:
+            yield self.prog
+        finally:
+            self.prog = main
+            self._free, self._scratch = saved
+
     # instructions
 
     @gate
     def nand_(self, a: int, b: int, *, dst: int | None = None) -> None:
         assert dst is not None          # gate always supplies it
-        self.prog.append((a, b, dst))
+        self.prog.append((a, b, dst, self.NAND))
 
     @gate
     def not_(self, a: int, *, dst: int | None = None) -> None:
@@ -267,7 +330,7 @@ class Asm:
     @gate
     def mov(self, a: int, *, dst: int | None = None, cleanup: bool = False) -> None:
         """Copy a into dst (a is left alone). cleanup=True makes it a move: a is released afterwards."""
-        if cleanup and a != dst and self.SCRATCH_LO <= a <= self.SCRATCH_HI:
+        if cleanup and a != dst and self._scratch[0] <= a <= self._scratch[1]:
             base, size = self._row_of(a)
             if size > 1:             
                 raise ValueError(f"cleanup would free the whole row {self._span(base, size)}; "
@@ -324,45 +387,33 @@ class Asm:
     # output
 
     @staticmethod
-    def _word(a: int, b: int, d: int) -> int:
-        return a | b << 8 | d << 16
+    def _word(a: int, b: int, d: int, op: int | None = None) -> int:
+        return a | b << 8 | d << 16 | (Asm.NAND if op is None else op) << 24
 
-    def simulate_ram(self) -> list[int]:
-        """Run the program with the RAM simulation helper and return its snapshot."""
-        return run_ram(self.prog, 1 << self.PC_BITS)
 
-    def terminal_print(self, start: int = 0, end: int = 256) -> None:
-        """Print and save the simulated RAM rows covering the address range [start, end)."""
-        ram = self.simulate_ram()
-        table = render_ram_table(ram, start, end)
-        if table is None:
-            print("No RAM addresses in range.")
-            return
+    # def simulate_ram(self) -> list[int]:
+    #     """Run the program with the RAM simulation helper and return its snapshot."""
+    #     return run_ram(self.prog, 1 << self.PC_BITS)
 
-        print(table)
-        write_ram_table(ram, OUTPUT_DIR / "program_table.md", start, end)
+    # def terminal_print(self, start: int = 0, end: int = 256) -> None:
+    #     """Print and save the simulated RAM rows covering the address range [start, end)."""
+    #     ram = self.simulate_ram()
+    #     table = render_ram_table(ram, start, end)
+    #     if table is None:
+    #         print("No RAM addresses in range.")
+    #         return
 
-    def write_memory_map_xlsx(
-        self, path: str | Path = OUTPUT_DIR / "memory_map.xlsx"
-    ) -> None:
-        """Write a colored Excel allocation map using the standalone RAM tools."""
-        write_ram_memory_map_xlsx(
-            path,
-            self._allocations,
-            self._protected,
-            self._free,
-            (self.PROTECTED_LO, self.PROTECTED_HI),
-            (self.SCRATCH_LO, self.SCRATCH_HI),
-            self.ZERO,
-            self.ONE,
-            1 << self.PC_BITS,
-        )
+    #     print(table)
+    #     write_ram_table(ram, OUTPUT_DIR / "program_table.md", start, end)
+
+    # def write_memory_map_xlsx(
+    #     self, path: str | Path = OUTPUT_DIR / "memory_map.xlsx"
+    # ) -> None:
+    #     pass
 
     def write_to_hex(self) -> None:
-        words = [self._word(*ins) for ins in self.prog] + [self.HALT]
-        if len(words) > 1 << self.PC_BITS:
-            raise RuntimeError(f"{len(words)} words (including HALT) won't fit in a {1 << self.PC_BITS}-word ROM")
-
+        words = [self._word(*ins) for ins in self._layout()]
+        
         with open(OUTPUT_DIR / "program.hex", "w") as f:
             f.write("v2.0 raw\n")
             for w in words:
@@ -378,19 +429,22 @@ class Asm:
 if __name__ == "__main__":
     assembly = Asm()
     
-    var_a = Asm.ZERO
-    var_b = Asm.ONE
-    var_c = Asm.ZERO #carry
-    var_s = assembly.alloc(1, protected=True, name="var_s")
-    example_alloc8b = assembly.alloc(8, protected=True, name="example")
-    example2_alloc8b = assembly.alloc(8, protected=True, name="nxt_row_example")
-    full_adder_1b(assembly, var_a, var_b, var_c, dst=var_s)
+    var_a = assembly.alloc(8, protected=True, name="var_a")
+    for i in range(8): assembly.mov(Asm.ZERO, dst=var_a + i)
+
+    var_b = assembly.alloc(8, protected=True, name="var_b")
+
+    not_8_body = None
+    with assembly.body() as words:
+        for i in range(8): assembly.nand_(var_a + i, var_a + i, dst=var_b + i)
+        not_8_body = assembly.place_body(words)
+
+
+    print(f'Var_a:{var_a:08x}')
+    print(f'Var_c:{var_b:08x}')
+    assembly.call(not_8_body, var_a)
 
     assembly.write_to_hex()
 
-    print(f'Var_a:{var_a:08x}')
-    print(f'Var_b:{var_b:08x}')
-    print(f'Var_c:{var_c:08x}')
-    print(f'Var_s:{var_s:08x}')
-    assembly.terminal_print(0, 256)
-    assembly.write_memory_map_xlsx()
+    # assembly.terminal_print(0, 256)
+    # assembly.write_memory_map_xlsx()

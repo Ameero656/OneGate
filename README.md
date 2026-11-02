@@ -23,15 +23,15 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Hardware architect: design and research**
 - Brainstorms, designs and researches the base Digital design. Makes the instruction-set calls (flag layout, how a jump is encoded) and adds the jump path to the control unit.
-- Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud`
+- Owns `Digital/*.dig` · Milestones 0 and 2 · Who: `Ameer Masoud & Isaac Blommel`
 
 **Researcher: dedicated research and compilation**
 - Researches current and contemporary CPU implementations for modern methods and relevant implementations. Procures documents; presents them to other teams for context and decision making. 
-- Owns `Documents/` · Who: `open`
+- Owns `Documents/` · Who: `Isaac Blommel`
 
 **FPGA port: Digital to Vivado**
 - Rebuilds the Digital design as Verilog and brings it up in Vivado: simulate it, synthesize it, and run it on a board if we have one. Keeps the Verilog synthesizable, for example by replacing the shared tri-state bus with a mux.
-- Owns `verilog/` (planned) · Milestone 4 · Who: `open`
+- Owns `verilog/` (planned) · Milestone 4 · Who: `Kien`
 
 **Assembly proofreader**
 - Checks that `asm.py` and `macros.py` do what they claim. Tests every macro against its truth table, builds the Python model that runs a program and returns RAM, and runs `add8` on all 65,536 inputs. Also checks that the generated `program.hex` and `program.lst` match the code.
@@ -51,11 +51,11 @@ OneGate is built by a small team, and each role below owns one part of the repo.
 
 **Verification and CI**
 - Makes sure the Python model, Digital and the Verilog all agree when they run the same `program.hex`, and runs those checks automatically on every pull request. Before tapeout this includes simulating the synthesized gate-level design.
-- Owns the cross-checks and CI setup · Milestone 4 · Who: `open`
+- Owns the cross-checks and CI setup · Milestone 4 · Who: `Kien` (open to others)
 
 **Tapeout and physical design**
 - Takes the Verilog through synthesis, place and route, and signoff in the club's 180 nm flow, and works with the club on area, pin and deadline limits. Everything that touches the foundry kit lives outside this public repo, and the person must be covered by the NDA first.
-- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `open`
+- Owns the physical-design flow (outside this repo) · Milestone 6 · Who: `Isaac Blommel & Kien` (open to others)
 
 **Project lead and docs**
 - Keeps this README and the roadmap true, reviews pull requests and decides what is agreed.

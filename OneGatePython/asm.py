@@ -284,7 +284,7 @@ class Asm:
             raise RuntimeError(f"{len(words)} words won't fit")
         return words
     
-    def place_body(self, instructions):
+    def place_body(self, instructions: list[tuple[int, int, int, int]]):
         if not instructions:
             raise ValueError("a body needs at least one instruction")
         *rest, (a, b, d, _) = instructions
